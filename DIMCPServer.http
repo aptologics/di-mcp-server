@@ -1,0 +1,58 @@
+@di_dot_csharp_mcp_server_HostAddress = http://localhost:8000
+
+### Health Check
+GET {{di_dot_csharp_mcp_server_HostAddress}}/health
+Accept: application/json
+
+###
+
+### MCP Initialize (JSON-RPC)
+POST {{di_dot_csharp_mcp_server_HostAddress}}/mcp
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2024-11-05",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "test-client",
+      "version": "1.0.0"
+    }
+  }
+}
+
+###
+
+### MCP List Tools
+POST {{di_dot_csharp_mcp_server_HostAddress}}/mcp
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list",
+  "params": {}
+}
+
+###
+
+### MCP Call get_metric_definitions
+POST {{di_dot_csharp_mcp_server_HostAddress}}/mcp
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "get_metric_definitions",
+    "arguments": {
+      "subject": "PRACTICE"
+    }
+  }
+}
+
+###
