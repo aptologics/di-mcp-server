@@ -1,10 +1,11 @@
-using System.Text.Json;
 using DIMCPServer.Configuration;
 using DIMCPServer.Models.Analytics;
 using DIMCPServer.Services.Analytics;
+using DIMCPServer.Tools.Analytics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
+using System.Text.Json;
 
 namespace DIMCPServer.Tools.Analytics;
 
@@ -59,12 +60,20 @@ public sealed class AnalyticsTools : IAnalyticsTools
         {
             var cacheKey = $"metricDefs:{resolvedSubject}";
             if (_cache.TryGetValue(cacheKey, out string? cached))
+            {
+                _logger.LogInformation("Cache HIT | Key={CacheKey}", cacheKey);
                 return cached!;
+            }
+
+            _logger.LogInformation("Cache MISS | Key={CacheKey}", cacheKey);
 
             var result = await _analytics.GetMetricDefinitionsAsync(resolvedSubject);
             var json = JsonSerializer.Serialize(result, JsonOptions);
 
-            _cache.Set(cacheKey, json, TimeSpan.FromHours(24));
+            var ttl = TimeSpan.FromMinutes(_settings.CacheTtlMinutes);
+            _cache.Set(cacheKey, json, ttl);
+            _logger.LogDebug("Cache SET | Key={CacheKey} | TTL={TtlMinutes}min", cacheKey, _settings.CacheTtlMinutes);
+
             return json;
         }
         catch (HttpRequestException ex)

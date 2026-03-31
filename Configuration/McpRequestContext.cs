@@ -11,4 +11,7 @@ public class McpRequestContext
 
     /// <summary>Auth token forwarded to downstream DI APIs (Di-Auth-Token header).</summary>
     public string? DiAuthToken { get; set; }
+
+    /// <summary>The MCP tool category extracted from the route (e.g. "analytics", "engagement").</summary>
+    public string? ToolCategory { get; set; }
 }

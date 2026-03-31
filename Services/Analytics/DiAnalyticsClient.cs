@@ -32,6 +32,9 @@ public class DiAnalyticsClient : IDiAnalyticsClient
             _httpClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", requestContext.DiAuthToken);
         }
+
+        // Forward Correlation ID for end-to-end distributed tracing
+        _httpClient.DefaultRequestHeaders.Add("X-Correlation-ID", requestContext.CorrelationId);
     }
 
     /// <summary>

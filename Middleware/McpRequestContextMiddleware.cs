@@ -19,11 +19,22 @@ public class McpRequestContextMiddleware
     {
         var mcpContext = context.RequestServices.GetRequiredService<McpRequestContext>();
 
+        // Use caller-provided Correlation ID or keep the auto-generated one
         if (context.Request.Headers.TryGetValue("X-Correlation-ID", out var correlationId))
             mcpContext.CorrelationId = correlationId.ToString();
 
         if (context.Request.Headers.TryGetValue("Di-Auth-Token", out var authToken))
             mcpContext.DiAuthToken = authToken.ToString();
+
+        // Extract tool category from route (e.g. /mcp/analytics → "analytics")
+        mcpContext.ToolCategory = context.Request.RouteValues["toolCategory"]?.ToString()?.ToLower();
+
+        // Echo CorrelationId back so the Orchestration Layer can correlate responses
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers["X-Correlation-ID"] = mcpContext.CorrelationId;
+            return Task.CompletedTask;
+        });
 
         // Require Di-Auth-Token for MCP endpoints
         if (context.Request.Path.StartsWithSegments("/mcp") && string.IsNullOrEmpty(mcpContext.DiAuthToken))

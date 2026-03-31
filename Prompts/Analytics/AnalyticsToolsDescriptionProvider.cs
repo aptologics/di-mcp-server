@@ -1,8 +1,8 @@
 namespace DIMCPServer.Prompts.Analytics;
 
 /// <summary>
-/// Centralized prompt definitions for MCP tool descriptions.
-/// Each prompt tells the LLM when/how to use the tool, what parameters to build,
+/// Centralized prompt definitions for MCP tool and resource descriptions.
+/// Each prompt tells the LLM when/how to use the tool or resource, what parameters to build,
 /// and how to parse/render the response. These are NOT user-facing strings.
 /// </summary>
 public static class AnalyticsToolsDescriptionProvider
@@ -104,6 +104,37 @@ public static class AnalyticsToolsDescriptionProvider
 
         ## Tone
         Concise, professional, data-driven. Keep descriptions to one sentence max in the table.
+        """;
+
+    /// <summary>
+    /// Description for the metric-definitions MCP Resource.
+    /// </summary>
+    public const string MetricDefinitionsResource = """
+        Metric definitions catalog for Dental Intelligence practice analytics.
+        This resource provides the complete list of available KPI metrics for a given subject,
+        pre-filtered to KPI metrics only.
+
+        ## Resource URI
+        `metrics://definitions/{subject}` — GET /Analytics/Metrics/Definitions
+
+        ## Response structure
+        Each item in `data` contains exactly:
+          mnemonicKey    -- unique key used when querying this metric
+          label          -- human-readable metric name
+          description    -- what the metric measures
+          displayFormat  -- CURRENCY | NUMBER | TEXT | PERCENT
+          classification -- PRODUCTION | OPERATIONS | APPOINTMENTS | MARKETING | null
+
+        ## How to use this data
+        1. Read this resource to discover available metrics for the subject.
+        2. Group metrics by `classification`:
+           - PRODUCTION | OPERATIONS | APPOINTMENTS | MARKETING | (other values)
+        3. Use the `mnemonicKey` values when building queries with `query_metric_result`
+           or `query_metric_series_result` tools.
+        4. Display the `label` to the user (never show raw mnemonicKeys).
+
+        ## Valid subjects
+        PRACTICE | PROVIDER | PROCEDURE | REFERRAL_SOURCE | INSURANCE_CARRIER | STAFF
         """;
 
     /// <summary>

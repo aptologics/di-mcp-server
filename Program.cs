@@ -1,9 +1,11 @@
 using DIMCPServer.Configuration;
+using DIMCPServer.Diagnostics;
 using DIMCPServer.ExtensionMethods;
 using DIMCPServer.Middleware;
 using DIMCPServer.Prompts.Analytics;
 using DIMCPServer.Prompts.Engagement;
 using DIMCPServer.Resources;
+using DIMCPServer.Resources.Analytics;
 using DIMCPServer.Services.Analytics;
 using DIMCPServer.Tools.Analytics;
 using DIMCPServer.Tools.Engagement;
@@ -23,6 +25,7 @@ var settings = builder.Configuration
 //builder.Services.AddMcpServer()
 //    .WithHttpTransport()
 //    .WithTools<AnalyticsTools>()
+//    .WithPrompts<AnalyticsPrompts>()
 //    .WithResources<ServerInfoResource>();
 #endregion
 
@@ -33,6 +36,10 @@ toolMethodMap.PopulateToolMethodMap<IEngagementTools>(ToolCategories.Engagement)
 var promptMethodMap = new ConcurrentDictionary<string, MethodInfo[]>();
 promptMethodMap.PopulatePromptMethodMap<AnalyticsPrompts>(ToolCategories.Analytics);
 promptMethodMap.PopulatePromptMethodMap<EngagementPrompts>(ToolCategories.Engagement);
+
+//var resourceMethodMap = new ConcurrentDictionary<string, MethodInfo[]>();
+//resourceMethodMap.PopulateResourceMethodMap<MetricDefinitionsResource>(ToolCategories.Analytics);
+//resourceMethodMap.PopulateResourceMethodMap<EngagementResources>(ToolCategories.Engagement);
 
 // Register tool types in DI
 builder.Services.AddScoped<IAnalyticsTools, AnalyticsTools>();
@@ -77,9 +84,24 @@ builder.Services.AddMcpServer()
                     promptCollection.Add(prompt);
                 }
             }
+
+            //// Configure prompts for the requested category
+            //if (resourceMethodMap.TryGetValue(toolCategory, out var resourceMethods))
+            //{
+            //    mcpOptions.Capabilities ??= new();
+            //    mcpOptions.Capabilities.Resources = new();
+            //    var resourceCollection = mcpOptions.ResourceCollection = [];
+
+            //    foreach (var method in resourceMethods)
+            //    {
+            //        var resource = McpServerResource.Create(method);
+            //        resourceCollection.Add(resource);
+            //    }
+            //}
         };
     })
-    .WithResources<ServerInfoResource>();
+    .WithResources<ServerInfoResource>()
+    .WithResources<MetricDefinitionsResource>();
 
 builder.Services.AddHttpClient<IDiAnalyticsClient, DiAnalyticsClient>(
     (sp, client) =>
@@ -89,11 +111,33 @@ builder.Services.AddHttpClient<IDiAnalyticsClient, DiAnalyticsClient>(
         client.Timeout = TimeSpan.FromSeconds(settings.ApiTimeoutSeconds);
         client.DefaultRequestHeaders.Accept.Add(
             new MediaTypeWithQualityHeaderValue("application/json"));
+    })
+    .AddStandardResilienceHandler(options =>
+    {
+        // Retry: 2 retries with exponential backoff for transient failures (5xx, timeouts)
+        options.Retry.MaxRetryAttempts = 2;
+        options.Retry.Delay = TimeSpan.FromMilliseconds(500);
+        options.Retry.UseJitter = true;
+
+        // Circuit breaker: open after sustained failures, half-open after 30s
+        options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
+        options.CircuitBreaker.FailureRatio = 0.5;
+        options.CircuitBreaker.MinimumThroughput = 5;
+        options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(30);
+
+        // Per-attempt timeout (individual request)
+        options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(15);
+
+        // Total timeout across all attempts (retries included)
+        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(settings.ApiTimeoutSeconds);
     });
 
 builder.Services.AddScoped<McpRequestContext>();
 
 builder.Services.AddMemoryCache();
+
+builder.Services.AddSingleton<McpServerMetrics>();
+//builder.Services.AddOpenTelemetry().WithMetrics(m => m.AddMeter("DIMCPServer"));
 
 builder.Logging.AddFilter("System.Net.Http", LogLevel.Warning);
 
@@ -108,6 +152,7 @@ if (settings.Debug)
     logger.LogWarning("Running in DEBUG mode — not suitable for production");
 
 app.UseMiddleware<McpRequestContextMiddleware>();
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.MapGet("/health", () => new { status = StatusCodes.Status200OK, version = "1.0" });
 
