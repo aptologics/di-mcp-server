@@ -1,15 +1,16 @@
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Runtime.Serialization;
+using JsonSubTypes;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using Stj = System.Text.Json;
+using StjSer = System.Text.Json.Serialization;
 
 namespace DI.MCP.Server.Models.Analytics;
 
 #region Enums
 
-/// <summary>
-/// Predicate operator types for where clause operands.
-/// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum PredicateOperator
 {
     TIME_PERIOD = 0,
@@ -21,23 +22,39 @@ public enum PredicateOperator
     EXCLUDES
 }
 
-/// <summary>
-/// Trend increment types for trendBy configuration.
-/// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum Period
+{
+    LAST = 0,
+    CURRENT = 1,
+    NEXT = 2,
+    CUSTOM = 3,
+}
+
+public enum Interval
+{
+    DAY = 0,
+    WEEK = 1,
+    MONTH = 2,
+    QUARTER = 3,
+    YEAR = 4,
+    RANGE = 5,
+}
+
+public enum Projection
+{
+    BACKWARD = 0,
+    FORWARD = 1,
+}
+
 public enum Increment
 {
     CONSECUTIVE = 0,
     WEEK_OVER_WEEK = 1,
     MONTH_OVER_MONTH = 2,
     QUARTER_OVER_QUARTER = 3,
-    YEAR_OVER_YEAR = 4
+    YEAR_OVER_YEAR = 4,
 }
 
-/// <summary>
-/// Group by options for metric queries.
-/// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum MetricQueryGroupBy
 {
     BASE = 0,
@@ -49,326 +66,229 @@ public enum MetricQueryGroupBy
     ONLY_PRACTICE_PROVIDER = 6
 }
 
-/// <summary>
-/// Time interval granularity for date filters.
-/// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum Interval
-{
-    DAY = 0,
-    WEEK = 1,
-    MONTH = 2,
-    QUARTER = 3,
-    YEAR = 4,
-    RANGE = 5
-}
-
-/// <summary>
-/// Relative time period for TIME_PERIOD operands.
-/// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum Period
-{
-    LAST = 0,
-    CURRENT = 1,
-    NEXT = 2,
-    CUSTOM = 3
-}
-
-/// <summary>
-/// Time direction for TIME_SERIES operands.
-/// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum Projection
-{
-    BACKWARD = 0,
-    FORWARD = 1
-}
-
-/// <summary>
-/// Display group by options for query options.
-/// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum DisplayGroupBy
 {
     REGION = 1,
     ENTERPRISE = 2,
     PROCEDURE_CATEGORY = 3,
     PRACTICE = 4,
-    TITLE = 5
+    TITLE = 5,
 }
 
 #endregion
 
-#region Operands
+#region Operand Hierarchy
 
-/// <summary>
-/// Date range filter using a named time period.
-/// Two patterns:
-///   1. Relative: interval (MONTH) + period (LAST)
-///   2. Explicit: interval (RANGE) + startDate + endDate
-/// </summary>
-public class TimePeriodOperand
+[DataContract]
+[JsonConverter(typeof(JsonSubtypes), "operator")]
+[JsonSubtypes.KnownSubType(typeof(OperandTimePeriod), PredicateOperator.TIME_PERIOD)]
+[JsonSubtypes.KnownSubType(typeof(OperandBetween), PredicateOperator.BETWEEN)]
+[JsonSubtypes.KnownSubType(typeof(OperandGreaterThan), PredicateOperator.GREATER_THAN)]
+[JsonSubtypes.KnownSubType(typeof(OperandIncludes), PredicateOperator.INCLUDES)]
+[JsonSubtypes.KnownSubType(typeof(OperandEquals), PredicateOperator.EQUALS)]
+[JsonSubtypes.KnownSubType(typeof(OperandTimeSeries), PredicateOperator.TIME_SERIES)]
+[JsonSubtypes.KnownSubType(typeof(OperandExcludes), PredicateOperator.EXCLUDES)]
+public class BaseOperand
 {
-    [JsonPropertyName("operator")]
-    public PredicateOperator Operator { get; set; } = PredicateOperator.TIME_PERIOD;
+    [DataMember(Name = "operator")]
+    [JsonConverter(typeof(StringEnumConverter))]
+    [Required(ErrorMessage = "operator is a required field")]
+    public PredicateOperator Operator { get; set; }
+}
 
-    [JsonPropertyName("interval")]
-    public Interval Interval { get; set; }
-
-    [JsonPropertyName("period")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+[DataContract]
+public class OperandTimePeriod : BaseOperand
+{
+    [JsonProperty("period", NullValueHandling = NullValueHandling.Ignore)]
+    [DataMember(Name = "period")]
+    [JsonConverter(typeof(StringEnumConverter))]
     public Period? Period { get; set; }
 
-    [JsonPropertyName("span")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonProperty("span", NullValueHandling = NullValueHandling.Ignore)]
+    [DataMember(Name = "span")]
     public int? Span { get; set; }
 
-    [JsonPropertyName("startDate")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [JsonConverter(typeof(FlexibleDateTimeConverter))]
-    public DateTime? StartDate { get; set; }
-
-    [JsonPropertyName("endDate")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [JsonConverter(typeof(FlexibleDateTimeConverter))]
-    public DateTime? EndDate { get; set; }
-}
-
-/// <summary>
-/// Inclusion / exclusion filter on a list of values.
-/// </summary>
-public class ValueOperand
-{
-    [JsonPropertyName("operator")]
-    public PredicateOperator Operator { get; set; }
-
-    [JsonPropertyName("value")]
-    public List<string> Value { get; set; } = [];
-}
-
-/// <summary>
-/// Date series filter using TIME_SERIES operator.
-/// Returns multiple consecutive time periods anchored at startDate.
-/// Used exclusively with POST /Analytics/Metrics/Query/Series.
-/// </summary>
-public class TimeSeriesOperand
-{
-    [JsonPropertyName("operator")]
-    public PredicateOperator Operator { get; set; } = PredicateOperator.TIME_SERIES;
-
-    /// <summary>Time granularity: DAY | WEEK | MONTH | QUARTER | YEAR</summary>
-    [JsonPropertyName("interval")]
+    [JsonProperty("interval")]
+    [DataMember(Name = "interval")]
+    [JsonConverter(typeof(StringEnumConverter))]
     public Interval Interval { get; set; }
 
-    /// <summary>Number of periods to return (1–24)</summary>
-    [JsonPropertyName("iterations")]
-    public int Iterations { get; set; }
+    [JsonProperty("startDate", NullValueHandling = NullValueHandling.Ignore)]
+    [DataMember(Name = "startDate")]
+    public DateTime? StartDate { get; set; }
 
-    /// <summary>BACKWARD (historical, default) or FORWARD (future/scheduled)</summary>
-    [JsonPropertyName("projection")]
-    public Projection Projection { get; set; } = Projection.BACKWARD;
-
-    /// <summary>Only supported value: CONSECUTIVE</summary>
-    [JsonPropertyName("increment")]
-    public Increment Increment { get; set; } = Increment.CONSECUTIVE;
-
-    /// <summary>Anchor start date in YYYY-MM-DD format</summary>
-    [JsonPropertyName("startDate")]
-    [JsonConverter(typeof(FlexibleDateTimeConverter))]
-    public DateTime StartDate { get; set; }
-
-    [JsonPropertyName("endDate")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [JsonConverter(typeof(FlexibleDateTimeConverter))]
+    [JsonProperty("endDate", NullValueHandling = NullValueHandling.Ignore)]
+    [DataMember(Name = "endDate")]
     public DateTime? EndDate { get; set; }
 }
 
-/// <summary>
-/// Polymorphic JSON converter for WhereClause.Operand.
-/// Discriminates on the "operator" field:
-///   - TIME_PERIOD → TimePeriodOperand
-///   - TIME_SERIES → TimeSeriesOperand
-///   - INCLUDES / EXCLUDES / EQUALS → ValueOperand
-/// </summary>
-public class OperandConverter : JsonConverter<object>
+[DataContract]
+public class OperandTimeSeries : BaseOperand
 {
-    private static readonly HashSet<string> ValueOperators = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "INCLUDES", "EXCLUDES", "EQUALS", "NOT_EQUALS"
-    };
+    [JsonProperty("startDate")]
+    [DataMember(Name = "startDate")]
+    public DateTime? StartDate { get; set; }
 
-    public override object? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        using var doc = JsonDocument.ParseValue(ref reader);
-        var root = doc.RootElement;
+    [JsonProperty("endDate", NullValueHandling = NullValueHandling.Ignore)]
+    [DataMember(Name = "endDate")]
+    public DateTime? EndDate { get; set; }
 
-        var op = root.TryGetProperty("operator", out var opProp)
-            ? opProp.GetString() ?? ""
-            : "";
+    [JsonProperty("interval")]
+    [DataMember(Name = "interval")]
+    [JsonConverter(typeof(StringEnumConverter))]
+    public Interval Interval { get; set; }
 
-        if (op.Equals("TIME_PERIOD", StringComparison.OrdinalIgnoreCase))
-            return JsonSerializer.Deserialize<TimePeriodOperand>(root.GetRawText(), options);
+    [JsonProperty("iterations")]
+    [DataMember(Name = "iterations")]
+    public int Iterations { get; set; }
 
-        if (op.Equals("TIME_SERIES", StringComparison.OrdinalIgnoreCase))
-            return JsonSerializer.Deserialize<TimeSeriesOperand>(root.GetRawText(), options);
+    [JsonProperty("projection")]
+    [DataMember(Name = "projection")]
+    [JsonConverter(typeof(StringEnumConverter))]
+    public Projection Projection { get; set; }
 
-        if (ValueOperators.Contains(op))
-            return JsonSerializer.Deserialize<ValueOperand>(root.GetRawText(), options);
+    [JsonProperty("increment")]
+    [DataMember(Name = "increment")]
+    [JsonConverter(typeof(StringEnumConverter))]
+    public Increment Increment { get; set; }
+}
 
-        throw new JsonException($"Unknown operand operator: '{op}'");
-    }
+[DataContract]
+public class OperandBetween : BaseOperand
+{
+    [JsonProperty("minValue")]
+    [DataMember(Name = "minValue")]
+    public string MinValue { get; set; }
 
-    public override void Write(Utf8JsonWriter writer, object value, JsonSerializerOptions options)
-    {
-        JsonSerializer.Serialize(writer, value, value.GetType(), options);
-    }
+    [JsonProperty("maxValue")]
+    [DataMember(Name = "maxValue")]
+    public string MaxValue { get; set; }
+}
+
+[DataContract]
+public class OperandGreaterThan : BaseOperand
+{
+    [JsonProperty("value")]
+    [DataMember(Name = "value")]
+    public string Value { get; set; }
+}
+
+[DataContract]
+public class OperandEquals : BaseOperand
+{
+    [JsonProperty("value")]
+    [DataMember(Name = "value")]
+    public string Value { get; set; }
+}
+
+[DataContract]
+public class OperandIncludes : BaseOperand
+{
+    [JsonProperty("value")]
+    [DataMember(Name = "value")]
+    public List<string> Value { get; set; } = new List<string>();
+}
+
+[DataContract]
+public class OperandExcludes : BaseOperand
+{
+    [JsonProperty("value")]
+    [DataMember(Name = "value")]
+    public List<string> Value { get; set; } = new List<string>();
 }
 
 #endregion
 
-#region Query Components
+#region Predicate
 
-/// <summary>
-/// A single filter condition in the query where array (BasePredicate).
-/// Common propertyIds: "dateKpi", "practiceId", "providerId", "staffId"
-/// </summary>
-public class WhereClause
+[DataContract]
+public class BasePredicate
 {
-    [JsonPropertyName("propertyId")]
-    public string PropertyId { get; set; } = "";
+    [JsonProperty("propertyId")]
+    [DataMember(Name = "propertyId")]
+    public string PropertyId { get; set; }
 
-    [JsonPropertyName("operand")]
-    [JsonConverter(typeof(OperandConverter))]
-    public object Operand { get; set; } = null!;
+    [JsonProperty("operand")]
+    [DataMember(Name = "operand")]
+    [StjSer.JsonConverter(typeof(StjBaseOperandConverter))]
+    public BaseOperand Operand { get; set; }
 }
 
-/// <summary>
-/// Trend configuration (SimpleTrendByData).
-/// Note: The API's SimpleTrendByData only has iterations and increment - no interval.
-/// </summary>
-public class TrendBy
+#endregion
+
+#region Query Models
+
+public class SimpleTrendByData
 {
-    /// <summary>Number of additional historical periods (1–12)</summary>
-    [JsonPropertyName("iterations")]
+    [JsonProperty("iterations")]
     public int Iterations { get; set; }
 
-    /// <summary>Trend increment type</summary>
-    [JsonPropertyName("increment")]
-    public Increment Increment { get; set; } = Increment.CONSECUTIVE;
+    [JsonProperty("increment")]
+    [JsonConverter(typeof(StringEnumConverter))]
+    public Increment Increment { get; set; }
 }
 
-/// <summary>
-/// Query options for metric results (SimpleSettingsViewData).
-/// </summary>
-public class QueryOptions
+public class SimpleSettingsViewData
 {
-    [JsonPropertyName("includeGoals")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonProperty("includeGoals", NullValueHandling = NullValueHandling.Ignore)]
     public bool? IncludeGoals { get; set; }
 
-    [JsonPropertyName("displayGroupBy")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonProperty("displayGroupBy", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonConverter(typeof(StringEnumConverter))]
     public DisplayGroupBy? DisplayGroupBy { get; set; }
 
-    [JsonPropertyName("includeInputPeriod")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonProperty("includeInputPeriod", NullValueHandling = NullValueHandling.Ignore)]
     public bool? IncludeInputPeriod { get; set; }
 
-    [JsonPropertyName("includeTimers")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonProperty("includeTimers", NullValueHandling = NullValueHandling.Ignore)]
     public bool? IncludeTimers { get; set; }
 
-    [JsonPropertyName("includeNullRows")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonProperty("includeNullRows", NullValueHandling = NullValueHandling.Ignore)]
     public bool? IncludeNullRows { get; set; }
 
-    [JsonPropertyName("includeVerboseDebug")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonProperty("includeVerboseDebug", NullValueHandling = NullValueHandling.Ignore)]
     public bool? IncludeVerboseDebug { get; set; }
 
-    [JsonPropertyName("includeForceVerboseDebug")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonProperty("includeForceVerboseDebug", NullValueHandling = NullValueHandling.Ignore)]
     public bool? IncludeForceVerboseDebug { get; set; }
 
-    [JsonPropertyName("includeSubtotalsBy")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? IncludeSubtotalsBy { get; set; }
+    [JsonProperty("includeSubtotalsBy", NullValueHandling = NullValueHandling.Ignore)]
+    public string IncludeSubtotalsBy { get; set; }
 
-    [JsonPropertyName("includeCacheId")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonProperty("includeCacheId", NullValueHandling = NullValueHandling.Ignore)]
     public bool? IncludeCacheId { get; set; }
 
-    [JsonPropertyName("includeBenchmarks")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? IncludeBenchmarks { get; set; }
-
-    [JsonPropertyName("includeCurrentPeriodInTrend")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonProperty("includeCurrentPeriodInTrend", NullValueHandling = NullValueHandling.Ignore)]
     public bool? IncludeCurrentPeriodInTrend { get; set; }
 
-    [JsonPropertyName("practiceProductionCalculationMethod")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonProperty("practiceProductionCalculationMethod", NullValueHandling = NullValueHandling.Ignore)]
     public int? PracticeProductionCalculationMethod { get; set; }
 }
 
-#endregion
-
-#region MetricQuery
-
-/// <summary>
-/// Full payload for POST /Analytics/Metrics/Query (AnalyticsMetricInputQuery).
-/// 
-/// IMPORTANT: The "from" field is a C# reserved keyword.
-/// We use [JsonPropertyName("from")] to serialize correctly.
-/// </summary>
-public class MetricQuery
+public class AnalyticsMetricInputQuery
 {
-    [JsonPropertyName("select")]
-    public List<string> Select { get; set; } = [];
+    [Required(ErrorMessage = "select is required.")]
+    public List<string> Select { get; set; }
 
-    /// <summary>
-    /// Subject: PRACTICE | PROVIDER | PROCEDURE | REFERRAL_SOURCE | INSURANCE_CARRIER | STAFF
-    /// NOTE: "from" is a C# reserved word — property name is "From" but serializes as "from"
-    /// </summary>
-    [JsonPropertyName("from")]
-    public string From { get; set; } = "";
+    [Required(ErrorMessage = "from is required.")]
+    public string From { get; set; }
 
-    [JsonPropertyName("where")]
-    public List<WhereClause> Where { get; set; } = [];
+    [Required(ErrorMessage = "where is required.")]
+    public List<BasePredicate> Where { get; set; }
 
-    [JsonPropertyName("trendBy")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public TrendBy? TrendBy { get; set; }
-
-    [JsonPropertyName("options")]
-    public QueryOptions Options { get; set; } = new();
-
-    [JsonPropertyName("groupBy")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonProperty("groupBy", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonConverter(typeof(StringEnumConverter))]
     public MetricQueryGroupBy? GroupBy { get; set; }
 
-    [JsonPropertyName("rootPracticeId")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SimpleTrendByData TrendBy { get; set; }
+    public SimpleSettingsViewData Options { get; set; } = new SimpleSettingsViewData();
     public Guid? RootPracticeId { get; set; }
-
-    [JsonPropertyName("customDate")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [JsonConverter(typeof(FlexibleDateTimeConverter))]
     public DateTime? CustomDate { get; set; }
-
-    [JsonPropertyName("clientCurrentDate")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [JsonConverter(typeof(FlexibleDateTimeConverter))]
     public DateTime? ClientCurrentDate { get; set; }
+    public string GrantId { get; set; }
 
-    [JsonPropertyName("grantId")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? GrantId { get; set; }
-
-    [JsonPropertyName("providerPulseType")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ProviderPulseType { get; set; }
+    [JsonProperty("providerPulseType", NullValueHandling = NullValueHandling.Ignore)]
+    public string ProviderPulseType { get; set; }
 }
 
 #endregion
@@ -376,11 +296,56 @@ public class MetricQuery
 #region Converters
 
 /// <summary>
-/// Flexible DateTime converter that handles multiple date formats from AI tool calls.
+/// System.Text.Json polymorphic converter for BaseOperand.
+/// Required because the MCP SDK deserializes tool parameters using System.Text.Json,
+/// but the actual API models use Newtonsoft.Json JsonSubtypes for polymorphism.
+/// This converter bridges the two, dispatching on the "operator" discriminator.
+/// </summary>
+public class StjBaseOperandConverter : StjSer.JsonConverter<BaseOperand>
+{
+    private static readonly Stj.JsonSerializerOptions InternalOptions = new(Stj.JsonSerializerDefaults.Web)
+    {
+        Converters = { new StjFlexibleDateTimeConverter(), new StjSer.JsonStringEnumConverter() }
+    };
+
+    private static readonly HashSet<string> ValueOperators = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "INCLUDES", "EXCLUDES", "EQUALS", "NOT_EQUALS"
+    };
+
+    public override BaseOperand? Read(ref Stj.Utf8JsonReader reader, Type typeToConvert, Stj.JsonSerializerOptions options)
+    {
+        using var doc = Stj.JsonDocument.ParseValue(ref reader);
+        var root = doc.RootElement;
+
+        var op = root.TryGetProperty("operator", out var opProp)
+            ? opProp.GetString() ?? ""
+            : "";
+
+        if (op.Equals("TIME_PERIOD", StringComparison.OrdinalIgnoreCase))
+            return Stj.JsonSerializer.Deserialize<OperandTimePeriod>(root.GetRawText(), InternalOptions);
+
+        if (op.Equals("TIME_SERIES", StringComparison.OrdinalIgnoreCase))
+            return Stj.JsonSerializer.Deserialize<OperandTimeSeries>(root.GetRawText(), InternalOptions);
+
+        if (ValueOperators.Contains(op))
+            return Stj.JsonSerializer.Deserialize<OperandIncludes>(root.GetRawText(), InternalOptions);
+
+        throw new Stj.JsonException($"Unknown operand operator: '{op}'");
+    }
+
+    public override void Write(Stj.Utf8JsonWriter writer, BaseOperand value, Stj.JsonSerializerOptions options)
+    {
+        Stj.JsonSerializer.Serialize(writer, value, value.GetType(), options);
+    }
+}
+
+/// <summary>
+/// Newtonsoft.Json flexible DateTime converter that handles multiple date formats from AI tool calls.
 /// Accepts: yyyy-MM-dd, MM-dd-yyyy, MM/dd/yyyy, and other common formats.
 /// Always serializes as yyyy-MM-dd for downstream API compatibility.
 /// </summary>
-public class FlexibleDateTimeConverter : JsonConverter<DateTime?>
+public class FlexibleDateTimeConverter : Newtonsoft.Json.JsonConverter<DateTime?>
 {
     private static readonly string[] Formats =
     [
@@ -393,13 +358,61 @@ public class FlexibleDateTimeConverter : JsonConverter<DateTime?>
         "M/d/yyyy"
     ];
 
-    public override DateTime? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override DateTime? ReadJson(JsonReader reader, Type objectType, DateTime? existingValue, bool hasExistingValue, JsonSerializer serializer)
     {
-        if (reader.TokenType == JsonTokenType.Null)
+        if (reader.TokenType == JsonToken.Null)
             return null;
 
-        if (reader.TokenType != JsonTokenType.String)
-            throw new JsonException("Expected a date string or null.");
+        if (reader.TokenType != JsonToken.String)
+            throw new JsonSerializationException("Expected a date string or null.");
+
+        var value = (string?)reader.Value;
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        if (DateTime.TryParseExact(value, Formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+            return dt;
+
+        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out dt))
+            return dt;
+
+        throw new JsonSerializationException($"Unable to parse '{value}' as a DateTime. Expected format: yyyy-MM-dd.");
+    }
+
+    public override void WriteJson(JsonWriter writer, DateTime? value, JsonSerializer serializer)
+    {
+        if (value is null)
+            writer.WriteNull();
+        else
+            writer.WriteValue(value.Value.ToString("yyyy-MM-dd"));
+    }
+}
+
+/// <summary>
+/// System.Text.Json flexible DateTime converter for MCP SDK compatibility.
+/// The MCP SDK uses System.Text.Json internally for tool parameter deserialization,
+/// so operand date fields need this converter to handle non-standard date formats.
+/// </summary>
+internal class StjFlexibleDateTimeConverter : StjSer.JsonConverter<DateTime?>
+{
+    private static readonly string[] Formats =
+    [
+        "yyyy-MM-dd",
+        "yyyy-MM-ddTHH:mm:ss",
+        "yyyy-MM-ddTHH:mm:ssZ",
+        "MM-dd-yyyy",
+        "MM/dd/yyyy",
+        "M-d-yyyy",
+        "M/d/yyyy"
+    ];
+
+    public override DateTime? Read(ref Stj.Utf8JsonReader reader, Type typeToConvert, Stj.JsonSerializerOptions options)
+    {
+        if (reader.TokenType == Stj.JsonTokenType.Null)
+            return null;
+
+        if (reader.TokenType != Stj.JsonTokenType.String)
+            throw new Stj.JsonException("Expected a date string or null.");
 
         var value = reader.GetString();
         if (string.IsNullOrWhiteSpace(value))
@@ -411,10 +424,10 @@ public class FlexibleDateTimeConverter : JsonConverter<DateTime?>
         if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out dt))
             return dt;
 
-        throw new JsonException($"Unable to parse '{value}' as a DateTime. Expected format: yyyy-MM-dd.");
+        throw new Stj.JsonException($"Unable to parse '{value}' as a DateTime. Expected format: yyyy-MM-dd.");
     }
 
-    public override void Write(Utf8JsonWriter writer, DateTime? value, JsonSerializerOptions options)
+    public override void Write(Stj.Utf8JsonWriter writer, DateTime? value, Stj.JsonSerializerOptions options)
     {
         if (value is null)
             writer.WriteNullValue();

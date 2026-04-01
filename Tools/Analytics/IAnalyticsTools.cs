@@ -29,16 +29,16 @@ namespace DI.MCP.Server.Tools.Analytics
             string from,
 
             [Description("Filter conditions array. Must include a dateKpi filter with operator TIME_PERIOD. Example: [{\"propertyId\":\"dateKpi\",\"operand\":{\"operator\":\"TIME_PERIOD\",\"interval\":\"MONTH\",\"period\":\"LAST\"}},{\"propertyId\":\"practiceId\",\"operand\":{\"operator\":\"INCLUDES\",\"value\":[\"<guid>\"]}}]")]
-            List<WhereClause> where,
+            List<BasePredicate> where,
 
             [Description("GUID of the root/parent practice for the account")]
             string rootPracticeId,
 
             [Description("Trend configuration: { iterations: 1-12, increment: \"CONSECUTIVE\" | \"MONTH_OVER_MONTH\" | etc. }")]
-            TrendBy? trendBy = null,
+            SimpleTrendByData? trendBy = null,
 
             [Description("Query options: { includeGoals, includeNullRows, includeCacheId, includeCurrentPeriodInTrend }")]
-            QueryOptions? options = null,
+            SimpleSettingsViewData? options = null,
 
             [Description("Group results by: BASE | PROVIDER | PRACTICE | PRACTICE_PROVIDER | ONLY_PROVIDER | ONLY_PRACTICE | ONLY_PRACTICE_PROVIDER")]
             string? groupBy = null,
@@ -58,16 +58,16 @@ namespace DI.MCP.Server.Tools.Analytics
             string from,
 
             [Description("Filter conditions as JSON array. Must include a dateKpi filter with operator TIME_SERIES. Example: [{\"propertyId\":\"dateKpi\",\"operand\":{\"operator\":\"TIME_SERIES\",\"interval\":\"MONTH\",\"iterations\":3,\"projection\":\"BACKWARD\",\"increment\":\"CONSECUTIVE\",\"startDate\":\"2026-02-01\"}},{\"propertyId\":\"practiceId\",\"operand\":{\"operator\":\"INCLUDES\",\"value\":[\"<guid>\"]}}]")]
-            List<WhereClause> where,
+            List<BasePredicate> where,
 
             [Description("GUID of the root/parent practice for the account")]
             string rootPracticeId,
 
             [Description("Trend configuration: { iterations: 1-12, increment: \"CONSECUTIVE\" | \"MONTH_OVER_MONTH\" | etc. }")]
-            TrendBy? trendBy = null,
+            SimpleTrendByData? trendBy = null,
 
             [Description("Query options: { includeInputPeriod, includeNullRows, includeGoals, includeCacheId }")]
-            QueryOptions? options = null,
+            SimpleSettingsViewData? options = null,
 
             [Description("Group results by: BASE | PROVIDER | PRACTICE | PRACTICE_PROVIDER | ONLY_PROVIDER | ONLY_PRACTICE | ONLY_PRACTICE_PROVIDER")]
             string? groupBy = null,
@@ -87,13 +87,13 @@ namespace DI.MCP.Server.Tools.Analytics
             string from,
 
             [Description("Filter conditions array. Must include a dateKpi filter with operator TIME_PERIOD. Example: [{\"propertyId\":\"dateKpi\",\"operand\":{\"operator\":\"TIME_PERIOD\",\"interval\":\"MONTH\",\"period\":\"LAST\"}},{\"propertyId\":\"practiceId\",\"operand\":{\"operator\":\"INCLUDES\",\"value\":[\"<guid>\"]}}]")]
-            List<WhereClause> where,
+            List<BasePredicate> where,
 
             [Description("GUID of the root/parent practice for the account")]
             string rootPracticeId,
 
-            [Description("Query options: { includeGoals, includeNullRows, includeCacheId }. Note: includeBenchmarks is auto-set.")]
-            QueryOptions? options = null,
+            [Description("Query options: { includeGoals, includeNullRows, includeCacheId }")]
+            SimpleSettingsViewData? options = null,
 
             [Description("Group results by: BASE | PROVIDER | PRACTICE | PRACTICE_PROVIDER | ONLY_PROVIDER | ONLY_PRACTICE | ONLY_PRACTICE_PROVIDER")]
             string? groupBy = null,

@@ -111,11 +111,11 @@ public static class AnalyticsToolsDescriptionProvider
     /// </summary>
     public const string MetricDefinitionsResource = """
         Metric definitions catalog for Dental Intelligence practice analytics.
-        This resource provides the complete list of available KPI metrics for a given subject,
-        pre-filtered to KPI metrics only.
+        This direct resource provides the complete list of available KPI metrics
+        for the PRACTICE subject, pre-filtered to KPI metrics only.
 
         ## Resource URI
-        `metrics://definitions/{subject}` — GET /Analytics/Metrics/Definitions
+        `metrics://definitions` — GET /Analytics/Metrics/Definitions
 
         ## Response structure
         Each item in `data` contains exactly:
@@ -126,15 +126,13 @@ public static class AnalyticsToolsDescriptionProvider
           classification -- PRODUCTION | OPERATIONS | APPOINTMENTS | MARKETING | null
 
         ## How to use this data
-        1. Read this resource to discover available metrics for the subject.
+        1. Read this resource to discover available metrics.
         2. Group metrics by `classification`:
            - PRODUCTION | OPERATIONS | APPOINTMENTS | MARKETING | (other values)
         3. Use the `mnemonicKey` values when building queries with `query_metric_result`
            or `query_metric_series_result` tools.
         4. Display the `label` to the user (never show raw mnemonicKeys).
-
-        ## Valid subjects
-        PRACTICE | PROVIDER | PROCEDURE | REFERRAL_SOURCE | INSURANCE_CARRIER | STAFF
+        5. For other subjects (PROVIDER, PROCEDURE, etc.), use the `get_metric_definitions` tool.
         """;
 
     /// <summary>

@@ -1,9 +1,12 @@
+using System.Text;
+using System.Text.Json;
 using DI.MCP.Server.Configuration;
 using DI.MCP.Server.Models.Analytics;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Serialization;
 using System.Net.Http.Headers;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace DI.MCP.Server.Services.Analytics;
 
@@ -26,11 +29,11 @@ public class DiAnalyticsClient : IDiAnalyticsClient
         _httpClient = httpClient;
         _logger = logger;
 
-        // Use Di-Auth-Token from the incoming MCP request
-        if (!string.IsNullOrEmpty(requestContext.DiAuthToken))
+        // Forward validated Bearer token to downstream API
+        if (!string.IsNullOrEmpty(requestContext.BearerToken))
         {
             _httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", requestContext.DiAuthToken);
+                new AuthenticationHeaderValue("Bearer", requestContext.BearerToken);
         }
 
         // Forward Correlation ID for end-to-end distributed tracing
@@ -48,19 +51,26 @@ public class DiAnalyticsClient : IDiAnalyticsClient
         return await response.Content.ReadFromJsonAsync<JsonElement>();
     }
 
+    private static readonly JsonSerializerSettings NewtonsoftSettings = new()
+    {
+        ContractResolver = new CamelCasePropertyNamesContractResolver(),
+        NullValueHandling = NullValueHandling.Ignore,
+        Converters = { new StringEnumConverter() },
+        DateFormatString = "yyyy-MM-dd"
+    };
+
     /// <summary>
     /// POST request to the downstream API.
+    /// Serializes with Newtonsoft.Json to match the API's serialization library.
     /// </summary>
     private async Task<JsonElement> PostAsync(string path, object body)
     {
         _logger.LogDebug("POST {Path}", path);
 
-        var jsonOptions = new JsonSerializerOptions
-        {
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-        };
+        var json = JsonConvert.SerializeObject(body, NewtonsoftSettings);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.PostAsJsonAsync(path, body, jsonOptions);
+        var response = await _httpClient.PostAsync(path, content);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<JsonElement>();
     }
@@ -99,14 +109,14 @@ public class DiAnalyticsClient : IDiAnalyticsClient
             : JsonDocument.Parse("{}").RootElement;
 
         var result = new { data = slimmed, pageInfo };
-        return JsonSerializer.SerializeToElement(result);
+        return System.Text.Json.JsonSerializer.SerializeToElement(result);
     }
 
     /// <summary>
     /// POST /Analytics/Metrics/Query
     /// Executes a metric query and returns rows of metric values, trends, goals, totals.
     /// </summary>
-    public async Task<JsonElement> QueryMetricResultAsync(MetricQuery payload)
+    public async Task<JsonElement> QueryMetricResultAsync(AnalyticsMetricInputQuery payload)
     {
         return await PostAsync("Analytics/Metrics/Query", payload);
     }
@@ -115,19 +125,17 @@ public class DiAnalyticsClient : IDiAnalyticsClient
     /// POST /Analytics/Metrics/Query/Series
     /// Executes a time-series metric query.
     /// </summary>
-    public async Task<JsonElement> QueryMetricSeriesResultAsync(MetricQuery payload)
+    public async Task<JsonElement> QueryMetricSeriesResultAsync(AnalyticsMetricInputQuery payload)
     {
         return await PostAsync("Analytics/Metrics/Query/Series", payload);
     }
 
     /// <summary>
     /// POST /Analytics/Metrics/Benchmarks
-    /// Retrieves industry benchmark values. Automatically sets options.includeBenchmarks = true.
+    /// Retrieves industry benchmark values for selected metrics.
     /// </summary>
-    public async Task<JsonElement> GetIndustryBenchmarksAsync(MetricQuery payload)
+    public async Task<JsonElement> GetIndustryBenchmarksAsync(AnalyticsMetricInputQuery payload)
     {
-        payload.Options ??= new QueryOptions();
-        payload.Options.IncludeBenchmarks = true;
         return await PostAsync("Analytics/Metrics/Benchmarks", payload);
     }
 

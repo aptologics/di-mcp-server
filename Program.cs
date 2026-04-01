@@ -7,6 +7,7 @@ using DI.MCP.Server.Prompts.Engagement;
 using DI.MCP.Server.Resources;
 using DI.MCP.Server.Resources.Analytics;
 using DI.MCP.Server.Services.Analytics;
+using DI.MCP.Server.Services.Authentication;
 using DI.MCP.Server.Tools.Analytics;
 using DI.MCP.Server.Tools.Engagement;
 using ModelContextProtocol.Server;
@@ -37,13 +38,25 @@ var promptMethodMap = new ConcurrentDictionary<string, MethodInfo[]>();
 promptMethodMap.PopulatePromptMethodMap<AnalyticsPrompts>(ToolCategories.Analytics);
 promptMethodMap.PopulatePromptMethodMap<EngagementPrompts>(ToolCategories.Engagement);
 
+//// Default resources (always included regardless of category)
+//var defaultResourceMethods = ConcurrentDictionaryExtensionMethod.GetResourceMethodsForType(typeof(ServerInfoResource));
+
 //var resourceMethodMap = new ConcurrentDictionary<string, MethodInfo[]>();
 //resourceMethodMap.PopulateResourceMethodMap<MetricDefinitionsResource>(ToolCategories.Analytics);
-//resourceMethodMap.PopulateResourceMethodMap<EngagementResources>(ToolCategories.Engagement);
 
 // Register tool types in DI
 builder.Services.AddScoped<IAnalyticsTools, AnalyticsTools>();
 builder.Services.AddScoped<IEngagementTools, EngagementTools>();
+
+// Register token validation service (IDP + Firebase + Internal Key)
+builder.Services.AddScoped<ITokenValidationService, TokenValidationService>();
+builder.Services.AddHttpClient("IdpValidation")
+    .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddHttpClient("FirebaseValidation")
+    .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(10));
+
+// Register resource types in DI (for instance-method resources that need constructor injection)
+//builder.Services.AddScoped<MetricDefinitionsResource>();
 
 builder.Services.AddMcpServer()
     .WithHttpTransport(options =>
@@ -85,23 +98,39 @@ builder.Services.AddMcpServer()
                 }
             }
 
-            //// Configure prompts for the requested category
+            //// Configure resources: default (ServerInfoResource) + category-specific
+            //mcpOptions.Capabilities ??= new();
+            //mcpOptions.Capabilities.Resources = new();
+            //var resourceCollection = mcpOptions.ResourceCollection = [];
+
+            //// Always add default resources
+            //foreach (var method in defaultResourceMethods)
+            //{
+            //    var target = method.IsStatic ? null : httpContext.RequestServices.GetRequiredService(method.DeclaringType!);
+            //    var resource = McpServerResource.Create(method, target, new McpServerResourceCreateOptions
+            //    {
+            //        Services = httpContext.RequestServices
+            //    });
+            //    resourceCollection.Add(resource);
+            //}
+
+            //// Add category-specific resources
             //if (resourceMethodMap.TryGetValue(toolCategory, out var resourceMethods))
             //{
-            //    mcpOptions.Capabilities ??= new();
-            //    mcpOptions.Capabilities.Resources = new();
-            //    var resourceCollection = mcpOptions.ResourceCollection = [];
-
             //    foreach (var method in resourceMethods)
             //    {
-            //        var resource = McpServerResource.Create(method);
+            //        var target = method.IsStatic ? null : httpContext.RequestServices.GetRequiredService(method.DeclaringType!);
+            //        var resource = McpServerResource.Create(method, target, new McpServerResourceCreateOptions
+            //        {
+            //            Services = httpContext.RequestServices
+            //        });
             //        resourceCollection.Add(resource);
             //    }
             //}
         };
     })
-    .WithResources<ServerInfoResource>()
-    .WithResources<MetricDefinitionsResource>();
+    .WithResources<ServerInfoResource>();
+
 
 builder.Services.AddHttpClient<IDiAnalyticsClient, DiAnalyticsClient>(
     (sp, client) =>

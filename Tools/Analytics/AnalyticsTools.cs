@@ -1,11 +1,10 @@
+using System.Text.Json;
 using DI.MCP.Server.Configuration;
 using DI.MCP.Server.Models.Analytics;
 using DI.MCP.Server.Services.Analytics;
-using DI.MCP.Server.Tools.Analytics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
-using System.Text.Json;
 
 namespace DI.MCP.Server.Tools.Analytics;
 
@@ -108,7 +107,7 @@ public sealed class AnalyticsTools : IAnalyticsTools
     /// <param name="clientCurrentDate">An optional client-supplied date string to use as the current date in the query context.</param>
     /// <param name="grantId">An optional grant identifier to further scope or filter the query.</param>
     /// <returns>A JSON string representing the query result. If the query fails, the JSON contains an error message.</returns>
-    public async Task<string> QueryMetricResult(List<string> select, string from, List<WhereClause> where, string rootPracticeId, TrendBy? trendBy = null, QueryOptions? options = null, string? groupBy = null, string? clientCurrentDate = null, int? grantId = null)
+    public async Task<string> QueryMetricResult(List<string> select, string from, List<BasePredicate> where, string rootPracticeId, SimpleTrendByData? trendBy = null, SimpleSettingsViewData? options = null, string? groupBy = null, string? clientCurrentDate = null, int? grantId = null)
     {
         _logger.LogDebug("query_metric_result from={From}, select={Select}",
             from, string.Join(",", select));
@@ -154,7 +153,7 @@ public sealed class AnalyticsTools : IAnalyticsTools
     /// <param name="grantId">An optional grant identifier to further scope or filter the query results.</param>
     /// <returns>A JSON string representing the metric series query result. If the query fails, the JSON contains an error
     /// message.</returns>
-    public async Task<string> QueryMetricSeriesResult(List<string> select, string from, List<WhereClause> where, string rootPracticeId, TrendBy? trendBy = null, QueryOptions? options = null, string? groupBy = null, string? clientCurrentDate = null, int? grantId = null)
+    public async Task<string> QueryMetricSeriesResult(List<string> select, string from, List<BasePredicate> where, string rootPracticeId, SimpleTrendByData? trendBy = null, SimpleSettingsViewData? options = null, string? groupBy = null, string? clientCurrentDate = null, int? grantId = null)
     {
         _logger.LogDebug("query_metric_series_result from={From}, select={Select}",
             from, string.Join(",", select));
@@ -200,7 +199,7 @@ public sealed class AnalyticsTools : IAnalyticsTools
     /// <param name="grantId">An optional grant identifier to further scope the benchmark data. If null, no grant filtering is applied.</param>
     /// <returns>A JSON-formatted string containing the industry benchmark results. If an error occurs, the returned JSON
     /// includes an error message.</returns>
-    public async Task<string> GetIndustryBenchmarks(List<string> select, string from, List<WhereClause> where, string rootPracticeId, QueryOptions? options = null, string? groupBy = null, string? clientCurrentDate = null, int? grantId = null)
+    public async Task<string> GetIndustryBenchmarks(List<string> select, string from, List<BasePredicate> where, string rootPracticeId, SimpleSettingsViewData? options = null, string? groupBy = null, string? clientCurrentDate = null, int? grantId = null)
     {
         _logger.LogDebug("get_industry_benchmarks from={From}, select={Select}",
             from, string.Join(",", select));
@@ -234,23 +233,10 @@ public sealed class AnalyticsTools : IAnalyticsTools
     #region Build Metric Query
 
     /// <summary>
-    /// Builds a MetricQuery object using the specified selection, source, filters, grouping, and additional query
-    /// options.
+    /// Builds an AnalyticsMetricInputQuery using the specified selection, source, filters, grouping, and options.
+    /// Matches the actual API model: POST /Analytics/Metrics/Query (AnalyticsMetricInputQuery).
     /// </summary>
-    /// <param name="select">A list of column names to include in the query result.</param>
-    /// <param name="from">The name of the data source or table to query.</param>
-    /// <param name="where">A list of where clauses that define the filtering conditions for the query.</param>
-    /// <param name="rootPracticeId">The root practice identifier as a string. Must be a valid GUID or null if not applicable.</param>
-    /// <param name="trendBy">An optional value specifying how to trend the results, such as by date or another dimension.</param>
-    /// <param name="options">Optional query options that influence query execution, such as paging or sorting. If null, default options are
-    /// used.</param>
-    /// <param name="groupBy">An optional string specifying the grouping dimension for the query. Must match a valid MetricQueryGroupBy value
-    /// if provided.</param>
-    /// <param name="clientCurrentDate">An optional string representing the client's current date. Accepted formats are "MM-dd-yyyy", "yyyy-MM-dd", or
-    /// any valid DateTime string.</param>
-    /// <param name="grantId">An optional grant identifier to further filter the query results.</param>
-    /// <returns>A MetricQuery object populated with the specified selection, filters, grouping, and options.</returns>
-    private static MetricQuery BuildMetricQuery(List<string> select, string from, List<WhereClause> where, string rootPracticeId, TrendBy? trendBy, QueryOptions? options, string? groupBy, string? clientCurrentDate, int? grantId)
+    private static AnalyticsMetricInputQuery BuildMetricQuery(List<string> select, string from, List<BasePredicate> where, string rootPracticeId, SimpleTrendByData? trendBy, SimpleSettingsViewData? options, string? groupBy, string? clientCurrentDate, int? grantId)
     {
         MetricQueryGroupBy? groupByEnum = null;
         if (!string.IsNullOrEmpty(groupBy) && Enum.TryParse<MetricQueryGroupBy>(groupBy, true, out var parsed))
@@ -269,7 +255,7 @@ public sealed class AnalyticsTools : IAnalyticsTools
                 parsedDate = date3;
         }
 
-        return new MetricQuery
+        return new AnalyticsMetricInputQuery
         {
             Select = select,
             From = from,
@@ -279,7 +265,7 @@ public sealed class AnalyticsTools : IAnalyticsTools
             ClientCurrentDate = parsedDate,
             GrantId = grantId?.ToString(),
             TrendBy = trendBy,
-            Options = options ?? new QueryOptions()
+            Options = options ?? new SimpleSettingsViewData()
         };
     }
 
