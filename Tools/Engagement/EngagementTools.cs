@@ -1,6 +1,6 @@
 ﻿using ModelContextProtocol.Server;
 
-namespace DIMCPServer.Tools.Engagement;
+namespace DI.MCP.Server.Tools.Engagement;
 
 [McpServerToolType]
 public sealed class EngagementTools : IEngagementTools

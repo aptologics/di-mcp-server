@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
-namespace DIMCPServer.Diagnostics;
+namespace DI.MCP.Server.Diagnostics;
 
 /// <summary>
 /// OpenTelemetry-compatible metrics for MCP Server request monitoring.
@@ -10,7 +10,7 @@ namespace DIMCPServer.Diagnostics;
 /// </summary>
 public sealed class McpServerMetrics
 {
-    public const string MeterName = "DIMCPServer";
+    public const string MeterName = "DI.MCP.Server";
 
     private readonly Counter<long> _requestCount;
     private readonly Counter<long> _errorCount;

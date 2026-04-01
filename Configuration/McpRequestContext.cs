@@ -1,4 +1,4 @@
-namespace DIMCPServer.Configuration;
+namespace DI.MCP.Server.Configuration;
 
 /// <summary>
 /// Scoped context that holds per-request MCP header values

@@ -1,4 +1,4 @@
-namespace DIMCPServer.Configuration;
+namespace DI.MCP.Server.Configuration;
 
 /// <summary>
 /// Central place for tool-category key constants used across the application.

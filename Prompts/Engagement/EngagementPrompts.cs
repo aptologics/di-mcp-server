@@ -2,7 +2,7 @@ using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
-namespace DIMCPServer.Prompts.Engagement;
+namespace DI.MCP.Server.Prompts.Engagement;
 
 /// <summary>
 /// MCP Prompts for Engagement — user-controlled templates for engagement workflows.

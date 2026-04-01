@@ -1,7 +1,7 @@
 using System.Text.Json;
-using DIMCPServer.Models.Analytics;
+using DI.MCP.Server.Models.Analytics;
 
-namespace DIMCPServer.Services.Analytics;
+namespace DI.MCP.Server.Services.Analytics;
 
 public interface IDiAnalyticsClient
 {

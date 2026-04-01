@@ -1,6 +1,6 @@
-using DIMCPServer.Configuration;
+using DI.MCP.Server.Configuration;
 
-namespace DIMCPServer.Middleware;
+namespace DI.MCP.Server.Middleware;
 
 /// <summary>
 /// Middleware that extracts X-Correlation-ID and Di-Auth-Token headers

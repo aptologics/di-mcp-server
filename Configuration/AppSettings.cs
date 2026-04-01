@@ -1,4 +1,4 @@
-namespace DIMCPServer.Configuration;
+namespace DI.MCP.Server.Configuration;
 
 public class AppSettings
 {

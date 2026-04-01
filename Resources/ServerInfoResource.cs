@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 
-namespace DIMCPServer.Resources;
+namespace DI.MCP.Server.Resources;
 
 [McpServerResourceType]
 public class ServerInfoResource

@@ -1,13 +1,13 @@
 using System.ComponentModel;
 using System.Text.Json;
-using DIMCPServer.Configuration;
-using DIMCPServer.Prompts.Analytics;
-using DIMCPServer.Services.Analytics;
+using DI.MCP.Server.Configuration;
+using DI.MCP.Server.Prompts.Analytics;
+using DI.MCP.Server.Services.Analytics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 
-namespace DIMCPServer.Resources.Analytics;
+namespace DI.MCP.Server.Resources.Analytics;
 
 /// <summary>
 /// MCP Resource Template that exposes metric definitions as readable context.

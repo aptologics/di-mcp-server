@@ -1,7 +1,7 @@
 ﻿using ModelContextProtocol.Server;
 using System.ComponentModel;
 
-namespace DIMCPServer.Tools.Engagement
+namespace DI.MCP.Server.Tools.Engagement
 {
     public interface IEngagementTools
     {

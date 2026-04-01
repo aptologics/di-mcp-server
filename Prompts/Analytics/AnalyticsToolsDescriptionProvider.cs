@@ -1,4 +1,4 @@
-namespace DIMCPServer.Prompts.Analytics;
+namespace DI.MCP.Server.Prompts.Analytics;
 
 /// <summary>
 /// Centralized prompt definitions for MCP tool and resource descriptions.

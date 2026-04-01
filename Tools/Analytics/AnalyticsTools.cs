@@ -1,13 +1,13 @@
-using DIMCPServer.Configuration;
-using DIMCPServer.Models.Analytics;
-using DIMCPServer.Services.Analytics;
-using DIMCPServer.Tools.Analytics;
+using DI.MCP.Server.Configuration;
+using DI.MCP.Server.Models.Analytics;
+using DI.MCP.Server.Services.Analytics;
+using DI.MCP.Server.Tools.Analytics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 using System.Text.Json;
 
-namespace DIMCPServer.Tools.Analytics;
+namespace DI.MCP.Server.Tools.Analytics;
 
 /// <summary>
 /// Provides tools for querying analytics metrics, metric series, and industry benchmarks from the analytics service.

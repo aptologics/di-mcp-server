@@ -1,9 +1,9 @@
-using DIMCPServer.Models.Analytics;
-using DIMCPServer.Prompts.Analytics;
+using DI.MCP.Server.Models.Analytics;
+using DI.MCP.Server.Prompts.Analytics;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 
-namespace DIMCPServer.Tools.Analytics
+namespace DI.MCP.Server.Tools.Analytics
 {
     /// <summary>
     /// Defines methods for retrieving metric definitions, querying metric results, obtaining metric series data, and

@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DIMCPServer.Models.Analytics;
+namespace DI.MCP.Server.Models.Analytics;
 
 #region Enums
 

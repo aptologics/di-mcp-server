@@ -1,14 +1,14 @@
-using DIMCPServer.Configuration;
-using DIMCPServer.Diagnostics;
-using DIMCPServer.ExtensionMethods;
-using DIMCPServer.Middleware;
-using DIMCPServer.Prompts.Analytics;
-using DIMCPServer.Prompts.Engagement;
-using DIMCPServer.Resources;
-using DIMCPServer.Resources.Analytics;
-using DIMCPServer.Services.Analytics;
-using DIMCPServer.Tools.Analytics;
-using DIMCPServer.Tools.Engagement;
+using DI.MCP.Server.Configuration;
+using DI.MCP.Server.Diagnostics;
+using DI.MCP.Server.ExtensionMethods;
+using DI.MCP.Server.Middleware;
+using DI.MCP.Server.Prompts.Analytics;
+using DI.MCP.Server.Prompts.Engagement;
+using DI.MCP.Server.Resources;
+using DI.MCP.Server.Resources.Analytics;
+using DI.MCP.Server.Services.Analytics;
+using DI.MCP.Server.Tools.Analytics;
+using DI.MCP.Server.Tools.Engagement;
 using ModelContextProtocol.Server;
 using System.Collections.Concurrent;
 using System.Net.Http.Headers;
@@ -137,7 +137,7 @@ builder.Services.AddScoped<McpRequestContext>();
 builder.Services.AddMemoryCache();
 
 builder.Services.AddSingleton<McpServerMetrics>();
-//builder.Services.AddOpenTelemetry().WithMetrics(m => m.AddMeter("DIMCPServer"));
+//builder.Services.AddOpenTelemetry().WithMetrics(m => m.AddMeter("DI.MCP.Server"));
 
 builder.Logging.AddFilter("System.Net.Http", LogLevel.Warning);
 

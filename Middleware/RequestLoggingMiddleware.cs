@@ -1,8 +1,8 @@
-using DIMCPServer.Configuration;
-using DIMCPServer.Diagnostics;
+using DI.MCP.Server.Configuration;
+using DI.MCP.Server.Diagnostics;
 using System.Diagnostics;
 
-namespace DIMCPServer.Middleware;
+namespace DI.MCP.Server.Middleware;
 
 /// <summary>
 /// Middleware that wraps each request in a structured log scope containing

@@ -1,11 +1,11 @@
-using DIMCPServer.Configuration;
-using DIMCPServer.Models.Analytics;
+using DI.MCP.Server.Configuration;
+using DI.MCP.Server.Models.Analytics;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DIMCPServer.Services.Analytics;
+namespace DI.MCP.Server.Services.Analytics;
 
 public class DiAnalyticsClient : IDiAnalyticsClient
 {

@@ -2,7 +2,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 
-namespace DIMCPServer.ExtensionMethods
+namespace DI.MCP.Server.ExtensionMethods
 {
     public static class ConcurrentDictionaryExtensionMethod
     {

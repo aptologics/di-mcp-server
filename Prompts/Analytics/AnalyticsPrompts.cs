@@ -2,7 +2,7 @@ using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
-namespace DIMCPServer.Prompts.Analytics;
+namespace DI.MCP.Server.Prompts.Analytics;
 
 /// <summary>
 /// MCP Prompts for Analytics — user-controlled templates that guide the LLM
